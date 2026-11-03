@@ -1,10 +1,12 @@
-# Builds WheatWars.apk on GitHub's servers. Push this folder to a GitHub repo, open the Actions tab,
-# run "Build Android APK", and download WheatWars-apk from the finished run.
+# Builds WheatWars.apk on GitHub's servers, checks it, and publishes it as a GitHub Release.
+# Runs on every push to main, or by hand: Actions tab > Build Android APK > Run workflow.
 name: Build Android APK
 on:
   workflow_dispatch:
   push:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,6 +19,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.7" }
       - run: gradle assembleDebug --no-daemon
-      - run: cp app/build/outputs/apk/debug/app-debug.apk WheatWars-2.2.0.apk
+      - name: Check the APK
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package|^sdkVersion|^targetSdkVersion|^application-label|^launchable-activity|uses-permission" | tee badging.txt
+          grep -q "name='com.fictionalsoftworks.wheatwars'" badging.txt
+          grep -q "versionName='2.2.0'" badging.txt
+          ! grep -q "uses-permission" badging.txt   # the game needs no permissions
+          "$BT/apksigner" verify --print-certs "$APK" | head -3
+          for f in index.html intro.mp4 manifest.webmanifest previous/index.html previous/version.txt; do
+            unzip -p "$APK" "assets/$f" | cmp - "app/src/main/assets/$f" && echo "OK assets/$f"
+          done
+          unzip -l "$APK" | grep -c "classes.dex"
+          cp "$APK" WheatWars-2.2.0.apk
+          ls -l WheatWars-2.2.0.apk
       - uses: actions/upload-artifact@v4
         with: { name: WheatWars-apk, path: WheatWars-2.2.0.apk }
+      - name: Publish release v2.2.0
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          NOTES="Wheat Wars 2.2.0 for Android 7.0+. Plays fully offline, no permissions. Download WheatWars-2.2.0.apk on your phone and open it to install."
+          gh release view v2.2.0 >/dev/null 2>&1 || gh release create v2.2.0 --title "Wheat Wars 2.2.0" --notes "$NOTES"
+          gh release upload v2.2.0 WheatWars-2.2.0.apk --clobber
