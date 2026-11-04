@@ -1,0 +1,31 @@
+# Builds the Electrical Weeding Windows 10/11 installer with NSIS and attaches it to release ew-v1.0.0.
+name: Electrical Weeding - Windows installer
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["electrical-weeding/windows/**", ".github/workflows/ew-windows.yml"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: electrical-weeding/windows
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis > /dev/null && makensis -VERSION
+      - run: makensis -V2 installer.nsi && ls -l ElectricalWeeding-Setup-1.0.0.exe
+      - name: Check the installer contents
+        run: |
+          sudo apt-get install -y -qq p7zip-full > /dev/null
+          7z l ElectricalWeeding-Setup-1.0.0.exe | grep -E "index.html|README.txt|icon.ico"
+          7z e -so ElectricalWeeding-Setup-1.0.0.exe index.html | cmp - index.html && echo "game file bundled unchanged"
+      - uses: actions/upload-artifact@v4
+        with: { name: ElectricalWeeding-windows, path: electrical-weeding/windows/ElectricalWeeding-Setup-1.0.0.exe }
+      - name: Add the installer to release ew-v1.0.0
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view ew-v1.0.0 >/dev/null 2>&1 || gh release create ew-v1.0.0 --title "Electrical Weeding 1.0.0" --notes "Electrical Weeding 1.0.0" --latest=false
+          gh release upload ew-v1.0.0 ElectricalWeeding-Setup-1.0.0.exe --clobber
