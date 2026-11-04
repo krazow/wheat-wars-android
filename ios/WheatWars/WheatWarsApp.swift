@@ -27,6 +27,12 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
         cfg.mediaTypesRequiringUserActionForPlayback = []    // PC-speaker sound effects
         cfg.websiteDataStore = .default()                    // saved games, scores & nickname persist
         cfg.applicationNameForUserAgent = "WheatWarsApp/2.2.0"  // the game hides browser-only buttons in the app
+        #if DEBUG
+        // test builds: record JavaScript errors so the simulator check can report them
+        cfg.userContentController.addUserScript(WKUserScript(
+            source: "window.__errs=[];addEventListener('error',e=>__errs.push(String(e.message)+' @'+e.lineno));",
+            injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #endif
         web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = self
         web.isOpaque = false
@@ -44,6 +50,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
         UIApplication.shared.isIdleTimerDisabled = true      // keep the screen awake while playing
         if let dir = Bundle.main.url(forResource: "game", withExtension: nil) {
             web.loadFileURL(dir.appendingPathComponent("index.html"), allowingReadAccessTo: dir)
+        } else {
+            print("WW-DIAG game folder missing from bundle")
         }
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(saveNow), name: UIApplication.willResignActiveNotification, object: nil)
@@ -60,6 +68,18 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         decisionHandler(action.request.url?.isFileURL == true ? .allow : .cancel)
     }
+
+    #if DEBUG
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("WW-DIAG didFinish \(webView.url?.absoluteString ?? "-")")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            let js = "JSON.stringify({mode:(window.S&&S.mode)||null,errs:window.__errs,ver:(window.WW&&WW.APP_VERSION),touch:window.TOUCH,app:window.APPSHELL,w:innerWidth,h:innerHeight,txt:(document.getElementById('scr')||{}).textContent?.slice(0,80),ls:(()=>{try{localStorage.setItem('x','1');return localStorage.getItem('x')}catch(e){return 'LS-ERR '+e}})()})"
+            webView.evaluateJavaScript(js) { r, e in print("WW-DIAG state \(r ?? "nil") err \(String(describing: e))") }
+        }
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { print("WW-DIAG didFail \(error)") }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { print("WW-DIAG didFailProvisional \(error)") }
+    #endif
 
     // if iOS reclaims the web view's memory in the background, reload (the save is already on disk)
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }

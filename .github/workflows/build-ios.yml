@@ -39,8 +39,9 @@ jobs:
           DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone [0-9]+ " | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           echo "device $DEV"; xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
           xcrun simctl install "$DEV" simbuild/Build/Products/Debug-iphonesimulator/WheatWars.app
-          xcrun simctl launch "$DEV" com.fictionalsoftworks.wheatwars
-          sleep 12
+          (timeout 40 xcrun simctl launch --console-pty "$DEV" com.fictionalsoftworks.wheatwars > ../applog.txt 2>&1 || true) &
+          sleep 30
+          echo "---- app output"; grep "WW-DIAG" ../applog.txt || tail -20 ../applog.txt
           xcrun simctl io "$DEV" screenshot ../sim-portrait.png
           xcrun simctl spawn "$DEV" log show --last 1m --predicate 'process == "WheatWars"' --style compact 2>/dev/null | grep -iE "error|fault" | head -5 || true
           python3 - <<'PY'
