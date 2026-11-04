@@ -1,27 +1,14 @@
-# Wheat Wars for Android (v2.2.0)
+# Wheat Wars 2.2.0 — mobile builds
 
-A native Android app wrapping the same game file as the PC and web versions. Everything is bundled in the
-APK (game, intro video, previous version 2.1.0), so it plays fully offline and asks for no permissions.
+A 1990s-shareware-style trading game of the Touchet Valley and the Tri-Cities. Same game file on every platform; fully offline.
 
-Android touches: Back works like ESC (closes menus and help; on the market it asks before quitting; on the
-title screen it exits); the game saves the moment you switch apps; the screen stays awake while playing;
-full-screen with the system bars hidden (swipe from an edge to show them); rotates freely; Android 7.0+.
+| Platform | How to install |
+|---|---|
+| **Android** | [WheatWars-2.2.0.apk](https://github.com/krazow/wheat-wars-android/releases/download/v2.2.0/WheatWars-2.2.0.apk) — open on the phone, allow installs from that source. |
+| **iPhone / iPad (no Apple account)** | Open https://krazow.github.io/wheat-wars-android/ in **Safari** → Share → **Add to Home Screen**. Plays offline, full-screen. |
+| **iPhone / iPad (native app)** | [WheatWars-2.2.0-unsigned.ipa](https://github.com/krazow/wheat-wars-android/releases/download/v2.2.0/WheatWars-2.2.0-unsigned.ipa) — sign & install with [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID (free IDs: re-sign every 7 days; paid developer account: 1 year). |
 
-## Build the APK (no tools needed on your PC)
-1. Create a new GitHub repository and upload the contents of this folder (keep the `.github` folder).
-2. Open the repository's **Actions** tab, choose **Build Android APK**, then **Run workflow**.
-3. When the run finishes (about 5 minutes), download **WheatWars-apk** from the run page and unzip it.
+Folders: `app/` Android project · `ios/` iOS project (XcodeGen) · `web/` offline web version.
+Every push to `main` rebuilds the APK, the iOS app and the web version (see the Actions tab).
 
-## Build with Android Studio
-Open this folder in Android Studio and choose Build > Build APK(s). Output:
-`app/build/outputs/apk/debug/app-debug.apk`.
-
-## Install on a phone
-Copy the APK to the phone and open it. Android will ask you to allow installs from that app (Files,
-Chrome, etc.) the first time. The APK is debug-signed, which is fine for sideloading; publishing on
-Google Play would need a release signing key.
-
-## Updating the game inside the app
-Replace `app/src/main/assets/index.html` with the new game file, raise `versionCode`/`versionName` in
-`app/build.gradle`, and rebuild. Saved games are kept across app updates (same app id
-`com.fictionalsoftworks.wheatwars`), but are removed if the app is uninstalled.
+Saved games: Android and iOS apps keep saves across app updates (lost on uninstall). The web version keeps them in Safari/Chrome storage for that site.

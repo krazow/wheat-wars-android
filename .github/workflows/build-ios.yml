@@ -1,0 +1,54 @@
+# Builds the iOS app on GitHub's Mac servers: an unsigned .ipa for sideloading (AltStore / Sideloadly
+# sign it with your own Apple ID), plus a test run in the iPhone simulator with a screenshot.
+name: Build iOS app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["ios/**", ".github/workflows/build-ios.yml"]
+permissions:
+  contents: write
+jobs:
+  ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build for iPhone (unsigned)
+        working-directory: ios
+        run: |
+          xcodebuild -project WheatWars.xcodeproj -scheme WheatWars -configuration Release \
+            -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -5
+          APP=build/Build/Products/Release-iphoneos/WheatWars.app
+          test -f "$APP/game/index.html" && test -f "$APP/game/intro.mp4"
+          cmp "$APP/game/index.html" WheatWars/game/index.html && echo "game file bundled unchanged"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist"
+          mkdir -p Payload && cp -R "$APP" Payload/ && zip -qr ../WheatWars-2.2.0-unsigned.ipa Payload
+          ls -l ../WheatWars-2.2.0-unsigned.ipa
+      - name: Test in the iPhone simulator
+        working-directory: ios
+        run: |
+          xcodebuild -project WheatWars.xcodeproj -scheme WheatWars -configuration Debug \
+            -sdk iphonesimulator -derivedDataPath simbuild CODE_SIGNING_ALLOWED=NO build | tail -3
+          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[45]" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "device $DEV"; xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" simbuild/Build/Products/Debug-iphonesimulator/WheatWars.app
+          xcrun simctl launch "$DEV" com.fictionalsoftworks.wheatwars
+          sleep 12
+          xcrun simctl io "$DEV" screenshot ../sim-portrait.png
+          python3 - <<'PY'
+          import base64, subprocess, zlib
+          # small preview in the log: sips resizes, then print as base64 between markers
+          subprocess.run(["sips","-Z","480","../sim-portrait.png","--out","../sim-small.png"],check=True,capture_output=True)
+          print("SIMSHOT-BEGIN");print(base64.b64encode(open("../sim-small.png","rb").read()).decode());print("SIMSHOT-END")
+          PY
+      - uses: actions/upload-artifact@v4
+        with: { name: WheatWars-ios, path: "WheatWars-2.2.0-unsigned.ipa\nsim-portrait.png" }
+      - name: Add the .ipa to release v2.2.0
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view v2.2.0 >/dev/null 2>&1 || gh release create v2.2.0 --title "Wheat Wars 2.2.0" --notes "Wheat Wars 2.2.0"
+          gh release upload v2.2.0 WheatWars-2.2.0-unsigned.ipa --clobber

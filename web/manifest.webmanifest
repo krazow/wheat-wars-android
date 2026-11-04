@@ -1,0 +1,39 @@
+{
+  "name": "Wheat Wars",
+  "short_name": "Wheat Wars",
+  "description": "A 1990s-style trading game of the Touchet Valley.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#0000aa",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./index.html",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "categories": [
+    "games"
+  ],
+  "lang": "en-US",
+  "prefer_related_applications": false
+}
