@@ -10,9 +10,12 @@ permissions:
   contents: write
 jobs:
   ios:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Use the newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | grep -v beta | sort -V | tail -1); echo "$X"; sudo xcode-select -s "$X"; xcodebuild -version
       - run: brew install xcodegen
       - name: Generate Xcode project
         working-directory: ios
@@ -33,7 +36,7 @@ jobs:
         run: |
           xcodebuild -project WheatWars.xcodeproj -scheme WheatWars -configuration Debug \
             -sdk iphonesimulator -derivedDataPath simbuild CODE_SIGNING_ALLOWED=NO build | tail -3
-          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[45]" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone [0-9]+ " | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           echo "device $DEV"; xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
           xcrun simctl install "$DEV" simbuild/Build/Products/Debug-iphonesimulator/WheatWars.app
           xcrun simctl launch "$DEV" com.fictionalsoftworks.wheatwars
