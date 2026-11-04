@@ -42,11 +42,15 @@ jobs:
           xcrun simctl launch "$DEV" com.fictionalsoftworks.wheatwars
           sleep 12
           xcrun simctl io "$DEV" screenshot ../sim-portrait.png
+          xcrun simctl spawn "$DEV" log show --last 1m --predicate 'process == "WheatWars"' --style compact 2>/dev/null | grep -iE "error|fault" | head -5 || true
           python3 - <<'PY'
           import base64, subprocess, zlib
           # small preview in the log: sips resizes, then print as base64 between markers
-          subprocess.run(["sips","-Z","480","../sim-portrait.png","--out","../sim-small.png"],check=True,capture_output=True)
-          print("SIMSHOT-BEGIN");print(base64.b64encode(open("../sim-small.png","rb").read()).decode());print("SIMSHOT-END")
+          subprocess.run(["sips","-s","format","jpeg","-s","formatOptions","70","-Z","560","../sim-portrait.png","--out","../sim-small.jpg"],check=True,capture_output=True)
+          b=base64.b64encode(open("../sim-small.jpg","rb").read()).decode()
+          print("SIMSHOT-BEGIN")
+          for k in range(0,len(b),800): print("S:"+b[k:k+800])
+          print("SIMSHOT-END")
           PY
       - uses: actions/upload-artifact@v4
         with: { name: WheatWars-ios, path: "WheatWars-2.2.0-unsigned.ipa\nsim-portrait.png" }
