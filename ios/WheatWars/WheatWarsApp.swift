@@ -85,7 +85,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
         diag("didFinish \(webView.url?.absoluteString ?? "-")")
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
             let js = "JSON.stringify({mode:(window.S&&S.mode)||null,errs:window.__errs,ver:(window.WW&&WW.APP_VERSION),touch:window.TOUCH,app:window.APPSHELL,w:innerWidth,h:innerHeight,txt:(document.getElementById('scr')||{}).textContent?.slice(0,80),ls:(()=>{try{localStorage.setItem('x','1');return localStorage.getItem('x')}catch(e){return 'LS-ERR '+e}})()})"
-            webView.evaluateJavaScript(js) { r, e in diag("state \(r ?? "nil") err \(String(describing: e))") }
+            webView.evaluateJavaScript(js) { r, e in self.diag("state \(r ?? "nil") err \(String(describing: e))") }
         }
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { diag("didFail \(error)") }
