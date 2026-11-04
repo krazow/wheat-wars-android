@@ -1,0 +1,48 @@
+# Builds the Electrical Weeding APK, checks it, and publishes it as release ew-v1.0.0.
+# Runs on every push to main, or by hand: Actions tab > Build Android APK > Run workflow.
+name: Electrical Weeding - Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["electrical-weeding/android/**", ".github/workflows/ew-android.yml"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: electrical-weeding/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      # GitHub's ubuntu runners ship the Android SDK (ANDROID_HOME); just accept its licenses
+      - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.7" }
+      - run: gradle assembleDebug --no-daemon
+      - name: Check the APK
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package|^sdkVersion|^targetSdkVersion|^application-label|^launchable-activity|uses-permission" | tee badging.txt
+          grep -q "name='com.fictionalsoftworks.electricalweeding'" badging.txt
+          grep -q "versionName='1.0.0'" badging.txt
+          ! grep -q "uses-permission" badging.txt   # the game needs no permissions
+          "$BT/apksigner" verify --print-certs "$APK" | head -3
+          for f in index.html manifest.webmanifest icon-512.png; do
+            unzip -p "$APK" "assets/$f" | cmp - "app/src/main/assets/$f" && echo "OK assets/$f"
+          done
+          unzip -l "$APK" | grep -c "classes.dex"
+          cp "$APK" ElectricalWeeding-1.0.0.apk
+          ls -l ElectricalWeeding-1.0.0.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: ElectricalWeeding-apk, path: electrical-weeding/android/ElectricalWeeding-1.0.0.apk }
+      - name: Publish release ew-v1.0.0
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          NOTES="Wheat Wars 2.2.0 for Android 7.0+. Plays fully offline, no permissions. Download ElectricalWeeding-1.0.0.apk on your phone and open it to install."
+          gh release view ew-v1.0.0 >/dev/null 2>&1 || gh release create ew-v1.0.0 --title "Electrical Weeding 1.0.0" --notes "$NOTES" --latest=false
+          gh release upload ew-v1.0.0 ElectricalWeeding-1.0.0.apk --clobber

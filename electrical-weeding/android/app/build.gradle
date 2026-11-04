@@ -1,0 +1,26 @@
+plugins { id "com.android.application" }
+
+android {
+    namespace "com.fictionalsoftworks.electricalweeding"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.fictionalsoftworks.electricalweeding"
+        minSdk 24          // Android 7.0+
+        targetSdk 34
+        versionCode 100    // 1.0.0
+        versionName "1.0.0"
+    }
+    buildTypes {
+        release { minifyEnabled false }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    // the game ships as plain files: don't compress the video so it can stream from the APK
+    androidResources { noCompress += ["mp4"] }
+}
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.11.0"
+}

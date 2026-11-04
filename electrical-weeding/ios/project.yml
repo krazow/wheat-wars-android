@@ -1,0 +1,27 @@
+# XcodeGen spec: `xcodegen generate` creates ElectricalWeeding.xcodeproj (done by the GitHub workflow)
+name: ElectricalWeeding
+options:
+  bundleIdPrefix: com.fictionalsoftworks
+  deploymentTarget: { iOS: "15.0" }
+targets:
+  ElectricalWeeding:
+    type: application
+    platform: iOS
+    sources:
+      - path: ElectricalWeeding
+        excludes: ["game"]
+      - path: ElectricalWeeding/game
+        type: folder          # copied as-is into the app bundle
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fictionalsoftworks.electricalweeding
+        PRODUCT_NAME: ElectricalWeeding
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "100"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ElectricalWeeding/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Manual

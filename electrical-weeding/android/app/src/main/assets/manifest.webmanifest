@@ -1,0 +1,21 @@
+{
+  "id": "./index.html",
+  "name": "Electrical Weeding",
+  "short_name": "E-Weeding",
+  "description": "A 1990s-style field-service trading game: trade electric-weeder parts and answer support calls.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#06303a",
+  "categories": ["games"],
+  "lang": "en-US",
+  "prefer_related_applications": false,
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

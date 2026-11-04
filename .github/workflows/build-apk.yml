@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore: ["electrical-weeding/**", "web/electrical-weeding/**", ".github/workflows/ew-*.yml"]
 permissions:
   contents: write
 jobs:

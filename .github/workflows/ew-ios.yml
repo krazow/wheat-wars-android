@@ -1,0 +1,70 @@
+# Builds the iOS app on GitHub's Mac servers: an unsigned .ipa for sideloading (AltStore / Sideloadly
+# sign it with your own Apple ID), plus a test run in the iPhone simulator with a screenshot.
+name: Electrical Weeding - iOS app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["electrical-weeding/ios/**", ".github/workflows/ew-ios.yml"]
+permissions:
+  contents: write
+jobs:
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the newest Xcode
+        run: |
+          xcodebuild -showsdks | grep -iE "ios|simulator"
+          X=$(ls -d /Applications/Xcode_*.app | grep -v beta | sort -V | tail -1); echo "$X"; sudo xcode-select -s "$X"; xcodebuild -version
+      - run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: electrical-weeding/ios
+        run: xcodegen generate
+      - name: Build for iPhone (unsigned)
+        working-directory: electrical-weeding/ios
+        run: |
+          xcodebuild -project ElectricalWeeding.xcodeproj -scheme ElectricalWeeding -configuration Release \
+            -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > ../xb-device.log 2>&1 || { grep -E "error|BUILD" ../xb-device.log | head -40; exit 1; }
+          grep -E "error:|BUILD" ../xb-device.log | head -20
+          test -x build/Build/Products/Release-iphoneos/ElectricalWeeding.app/ElectricalWeeding || { echo "NO EXECUTABLE"; grep -iE "swift|Compile|Ld " ../xb-device.log | head -20; ls -la build/Build/Products/Release-iphoneos/ElectricalWeeding.app; exit 1; }
+          lipo -info build/Build/Products/Release-iphoneos/ElectricalWeeding.app/ElectricalWeeding
+          APP=build/Build/Products/Release-iphoneos/ElectricalWeeding.app
+          test -f "$APP/game/index.html" && test -f "$APP/game/intro.mp4"
+          cmp "$APP/game/index.html" ElectricalWeeding/game/index.html && echo "game file bundled unchanged"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist"
+          mkdir -p Payload && cp -R "$APP" Payload/ && zip -qr ../ElectricalWeeding-1.0.0-unsigned.ipa Payload
+          ls -l ../ElectricalWeeding-1.0.0-unsigned.ipa
+      - name: Test in the iPhone simulator
+        working-directory: electrical-weeding/ios
+        run: |
+          xcodebuild -project ElectricalWeeding.xcodeproj -scheme ElectricalWeeding -configuration Debug \
+            -sdk iphonesimulator -derivedDataPath simbuild CODE_SIGNING_ALLOWED=NO build > ../xb-sim.log 2>&1 || { grep -E "error|BUILD" ../xb-sim.log | head -40; exit 1; }
+          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone [0-9]+ " | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "device $DEV"; xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" simbuild/Build/Products/Debug-iphonesimulator/ElectricalWeeding.app
+          xcrun simctl launch "$DEV" com.fictionalsoftworks.electricalweeding
+          sleep 30
+          echo "---- running?"; xcrun simctl spawn "$DEV" launchctl list | grep -i electricalweeding || echo "NOT RUNNING"
+          D=$(xcrun simctl get_app_container "$DEV" com.fictionalsoftworks.electricalweeding data)
+          echo "---- diag"; cat "$D/Documents/diag.txt" 2>/dev/null | sed 's/^/DIAG: /' || echo "no diag file"
+          echo "---- crash reports"; ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i electricalweeding || echo "none"
+          for f in ~/Library/Logs/DiagnosticReports/ElectricalWeeding*; do [ -f "$f" ] && head -c 3000 "$f" | sed 's/^/CRASH: /'; done || true
+          xcrun simctl io "$DEV" screenshot ../sim-portrait.png
+          xcrun simctl spawn "$DEV" log show --last 1m --predicate 'process == "ElectricalWeeding"' --style compact 2>/dev/null | grep -iE "error|fault" | head -5 || true
+          python3 - <<'PY'
+          import base64, subprocess, zlib
+          # small preview in the log: sips resizes, then print as base64 between markers
+          subprocess.run(["sips","-s","format","jpeg","-s","formatOptions","70","-Z","560","../sim-portrait.png","--out","../sim-small.jpg"],check=True,capture_output=True)
+          b=base64.b64encode(open("../sim-small.jpg","rb").read()).decode()
+          print("SIMSHOT-BEGIN")
+          for k in range(0,len(b),800): print("S:"+b[k:k+800])
+          print("SIMSHOT-END")
+          PY
+      - uses: actions/upload-artifact@v4
+        with: { name: ElectricalWeeding-ios, path: "electrical-weeding/ElectricalWeeding-1.0.0-unsigned.ipa\nelectrical-weeding/sim-portrait.png" }
+      - name: Add the .ipa to release ew-v1.0.0
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view ew-v1.0.0 >/dev/null 2>&1 || gh release create ew-v1.0.0 --title "Electrical Weeding 1.0.0" --notes "Electrical Weeding 1.0.0" --latest=false
+          gh release upload ew-v1.0.0 electrical-weeding/ElectricalWeeding-1.0.0-unsigned.ipa --clobber
